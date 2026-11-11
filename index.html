@@ -53,11 +53,55 @@
       </aside>
     </div>
 
+    <!--
+      Dos overlays separados a propósito: #overlay sigue siendo el overlay de
+      partida (PAUSA / GAME OVER) y #start-overlay es la pantalla de inicio con
+      la tabla de records. Separarlos evita mezclar el markup de la tabla con
+      los estados del juego y deja intactos los IDs existentes.
+    -->
+    <div id="start-overlay" class="overlay">
+      <div class="overlay-box start-box">
+        <p class="overlay-heading">RECORDS</p>
+        <table class="scores" id="scores-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>NOMBRE</th>
+              <th>PUNTOS</th>
+              <th>LÍNEAS</th>
+              <th>NIVEL</th>
+              <th>COMBO</th>
+            </tr>
+          </thead>
+          <tbody id="scores-body"></tbody>
+        </table>
+        <p class="scores-empty" id="scores-empty" hidden>Todavía no hay records. ¡Juega una partida!</p>
+        <p class="scores-stats">
+          Mejor combo: <strong id="best-combo">0</strong> ·
+          Líneas máximas: <strong id="best-lines">0</strong>
+        </p>
+        <p class="start-msg" id="start-msg" role="status" hidden></p>
+        <div class="btn-row">
+          <button id="play-btn" type="button">Jugar</button>
+          <button id="reset-scores-btn" type="button" class="btn-secondary">Resetear records</button>
+        </div>
+      </div>
+    </div>
+
     <div id="overlay" class="overlay hidden">
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
-        <button id="restart-btn">Reiniciar</button>
+        <p class="record-msg" id="record-msg" role="status" hidden>¡Nuevo record! Entras en el top 5.</p>
+        <div class="name-form" id="name-form" hidden>
+          <label class="label" for="name-input">TU NOMBRE</label>
+          <input id="name-input" type="text" maxlength="12" placeholder="Anónimo" autocomplete="off" spellcheck="false" />
+          <button id="save-score-btn" type="button">Guardar</button>
+        </div>
+        <div class="btn-row">
+          <button id="restart-btn" type="button">Reiniciar</button>
+          <button id="scores-btn" type="button" class="btn-secondary" hidden>Ver records</button>
+        </div>
       </div>
     </div>
   </div>

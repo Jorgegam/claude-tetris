@@ -23,6 +23,13 @@
   --kbd-text: #aaa;
   --overlay-bg: rgba(10, 10, 20, 0.75);
   --danger: #e57373;
+  --success: #81c784;
+  --record-highlight: rgba(122, 162, 247, 0.22);
+  --record-highlight-border: #7aa2f7;
+  --input-bg: #15151f;
+  --input-border: #3a3a5a;
+  --secondary-bg: #22223a;
+  --secondary-border: #3a3a5a;
 }
 
 :root[data-theme="light"] {
@@ -43,6 +50,13 @@
   --kbd-text: #3a3d55;
   --overlay-bg: rgba(242, 243, 248, 0.8);
   --danger: #d32f2f;
+  --success: #2e7d32;
+  --record-highlight: rgba(59, 91, 219, 0.16);
+  --record-highlight-border: #3b5bdb;
+  --input-bg: #ffffff;
+  --input-border: #b9bdd1;
+  --secondary-bg: #e6e8f2;
+  --secondary-border: #b9bdd1;
 }
 
 body {
@@ -205,8 +219,9 @@ kbd {
   color: var(--accent);
 }
 
-#restart-btn {
-  margin-top: 8px;
+#restart-btn,
+#play-btn,
+#save-score-btn {
   background: var(--accent);
   color: var(--accent-contrast);
   border: none;
@@ -219,6 +234,147 @@ kbd {
   transition: background 0.15s;
 }
 
-#restart-btn:hover {
+#restart-btn:hover,
+#play-btn:hover,
+#save-score-btn:hover {
   background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: var(--secondary-bg);
+  color: var(--text);
+  border: 1px solid var(--secondary-border);
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+/* [hidden] necesita !important porque algunos contenedores son flex */
+[hidden] {
+  display: none !important;
+}
+
+/* ---- Pantalla de inicio y tabla de records ---- */
+.start-box {
+  background: var(--board-bg);
+  border: 1px solid var(--board-border);
+  border-radius: 8px;
+  padding: 20px 22px;
+  gap: 14px;
+  max-width: 100%;
+}
+
+.overlay-heading {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: var(--accent);
+}
+
+.scores {
+  border-collapse: collapse;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.scores th {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--label);
+  padding: 0 6px 6px;
+  text-align: right;
+}
+
+.scores th:nth-child(2) {
+  text-align: left;
+}
+
+.scores td {
+  padding: 5px 6px;
+  border-top: 1px solid var(--board-border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.scores td:nth-child(2) {
+  text-align: left;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scores tr.is-new td {
+  background: var(--record-highlight);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.scores tr.is-new td:first-child {
+  border-left: 3px solid var(--record-highlight-border);
+}
+
+.scores-empty,
+.scores-stats {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.start-msg,
+.record-msg {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--success);
+  text-align: center;
+}
+
+.start-msg.is-error {
+  color: var(--danger);
+}
+
+/* ---- Formulario de nombre (Game Over) ---- */
+.name-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+#name-input {
+  /* body usa user-select: none; el campo debe permitir seleccionar texto */
+  user-select: text;
+  background: var(--input-bg);
+  color: var(--text);
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  width: 180px;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: center;
+}
+
+#name-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
