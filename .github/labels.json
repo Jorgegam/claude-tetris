@@ -1,0 +1,30 @@
+[
+  { "name": "type:bug",          "color": "d73a4a", "description": "Algo no funciona como debería" },
+  { "name": "type:feature",      "color": "0e8a16", "description": "Funcionalidad nueva" },
+  { "name": "type:improvement",  "color": "a2eeef", "description": "Mejora de algo que ya existe" },
+  { "name": "type:refactor",     "color": "fbca04", "description": "Reorganización interna sin cambio de comportamiento" },
+  { "name": "type:docs",         "color": "0075ca", "description": "Documentación" },
+  { "name": "type:question",     "color": "d876e3", "description": "Pregunta o duda, sin cambio de código" },
+
+  { "name": "area:gameplay",     "color": "1d76db", "description": "Piezas, colisiones, rotación, wall kicks, bucle de juego" },
+  { "name": "area:rendering",    "color": "5319e7", "description": "Dibujado en canvas: draw, drawBlock, drawGrid, drawNext" },
+  { "name": "area:ui",           "color": "006b75", "description": "HTML y CSS: HUD, overlay, layout, tema visual" },
+  { "name": "area:controls",     "color": "0052cc", "description": "Entrada de teclado y mapeo de controles" },
+  { "name": "area:scoring",      "color": "bfd4f2", "description": "Puntuación, líneas, niveles y velocidad" },
+  { "name": "area:audio",        "color": "c5def5", "description": "Sonido y música" },
+  { "name": "area:ci",           "color": "2b2d42", "description": "Workflows de GitHub Actions y automatización" },
+  { "name": "area:docs",         "color": "0075ca", "description": "README y documentación del proyecto" },
+
+  { "name": "priority:critical", "color": "b60205", "description": "El juego no se puede usar; arreglar ya" },
+  { "name": "priority:high",     "color": "d93f0b", "description": "Afecta una mecánica central del juego" },
+  { "name": "priority:medium",   "color": "fbca04", "description": "Molesto pero con alternativa" },
+  { "name": "priority:low",      "color": "c2e0c6", "description": "Detalle menor o mejora opcional" },
+
+  { "name": "complexity:s",      "color": "ededed", "description": "Cambio pequeño y localizado (menos de 1 hora)" },
+  { "name": "complexity:m",      "color": "bababa", "description": "Varios archivos o lógica nueva (medio día)" },
+  { "name": "complexity:l",      "color": "8b8b8b", "description": "Cambio amplio o de diseño (más de un día)" },
+
+  { "name": "needs-info",        "color": "e4e669", "description": "Falta información para poder diagnosticar" },
+  { "name": "triaged",           "color": "5fb236", "description": "Clasificado y diagnosticado automáticamente por Claude" },
+  { "name": "skip-triage",       "color": "ffffff", "description": "Excluir este issue del triage automático" }
+]

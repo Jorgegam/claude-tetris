@@ -1,0 +1,44 @@
+name: Labels Sync
+
+# Creates or updates the label taxonomy defined in .github/labels.json.
+# Idempotent: it never deletes labels, so the labels GitHub ships with
+# (bug, enhancement, documentation, ...) stay untouched.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/labels.json
+      - .github/workflows/labels-sync.yml
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Create or update labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          jq -c '.[]' .github/labels.json | while read -r entry; do
+            name=$(jq -r '.name' <<<"$entry")
+            color=$(jq -r '.color' <<<"$entry")
+            description=$(jq -r '.description // ""' <<<"$entry")
+            gh label create "$name" \
+              --color "$color" \
+              --description "$description" \
+              --force
+          done
+          echo "Synced $(jq 'length' .github/labels.json) labels."
