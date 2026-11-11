@@ -48,6 +48,7 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Game Over** con opción de reinicio.
 - **Tabla de records local** (top 5) guardada en `localStorage`, con nombre, puntos, líneas, nivel y mejor combo de cada partida, más dos agregados calculados sobre los records guardados: **mejor combo** (la racha más alta registrada) y **líneas máximas** (el mejor total de líneas de una partida). Incluye botón **Resetear records** (pide confirmación).
 - **Combos**: se registra la racha de piezas consecutivas que limpian línea; el máximo de la partida se guarda junto al record.
+- **Sonido al completar línea**: cada vez que se limpia al menos una fila suena un efecto corto (_Unlock game notification_, de [Mixkit](https://mixkit.co/free-sound-effects/game/)), cargado desde su CDN. Si el navegador bloquea la reproducción o no hay conexión, el juego sigue funcionando en silencio.
 - **Temas claro / oscuro** y **cuatro skins visuales** (Retro, Neón, Pastel y Pixel art) que cambian la paleta y el dibujado de los bloques. Ambas preferencias se recuerdan entre partidas.
 
 ---
@@ -165,6 +166,7 @@ Contiene toda la lógica del juego. A grandes rasgos:
 - **Menú de pausa** (`openPauseMenu` / `closePauseMenu` / `showMenuView`): detiene el `requestAnimationFrame`, muestra el overlay del menú y alterna entre la vista principal y la de controles. El nivel inicial se lee y se escribe en `localStorage` dentro de `try/catch`, igual que la preferencia de tema.
 - **Ghost piece** (`ghostY`): proyecta la posición final de la pieza actual hacia abajo y la dibuja con `globalAlpha = 0.2`.
 - **Combos** (`lockPiece`): `clearLines()` devuelve cuántas líneas quitó; si quitó alguna se incrementa `comboStreak` (y se actualiza `maxCombo`), y si no, la racha vuelve a `0`.
+- **Audio** (`createLineClearSound` / `playLineClearSound`): un único elemento `Audio` creado al cargar el script —para que el mp3 esté ya en caché cuando llegue la primera línea— y reutilizado en cada limpieza rebobinándolo con `currentTime = 0`. `clearLines()` lo dispara dentro de su bloque `if (cleared)`, así que suena una sola vez tanto si se limpia una línea como si se limpian cuatro. La promesa de `play()` y el constructor van envueltos en `catch`: la política de autoplay del navegador o un fallo de red nunca deben romper la partida.
 - **Records** (`loadScores` / `saveScore` / `resetScores`): top 5 persistido en `localStorage` bajo la clave `tetris.highscores`. Cada entrada es `{ name, score, lines, level, maxCombo, date }`. Todos los accesos van dentro de `try/catch` y `loadScores()` valida la forma de lo leído (array, campos numéricos), devolviendo una lista vacía si el JSON está corrupto o viene de otra versión.
 
 ### Flujo del juego
@@ -198,6 +200,7 @@ Cuando una pieza recién generada ya colisiona al aparecer (`spawn`), se dispara
 - **JavaScript (ES6+) vanilla** — `const`/`let`, _arrow functions_, _spread operator_, `Array.from`, _template literals_…
 - **Canvas 2D API** — para todo el renderizado del juego.
 - **`requestAnimationFrame`** — para el bucle de juego sincronizado con el navegador.
+- **HTML5 Audio** — un elemento `Audio` para el efecto de línea completada, sin Web Audio API ni ficheros en el repo.
 
 **Sin dependencias.** No hay `package.json`, ni bundler, ni transpilador.
 
@@ -229,8 +232,11 @@ Algunos parámetros fáciles de tunear en `game.js`:
 | `LINE_SCORES`  | Puntos por 1, 2, 3 o 4 líneas eliminadas | `[0,100,300,500,800]` |
 | `MIN_START_LEVEL` / `MAX_START_LEVEL` | Rango del selector de nivel inicial | `1` / `15` |
 | `START_LEVEL_KEY` | Clave de `localStorage` del nivel inicial | `tetris.startLevel` |
+| `LINE_CLEAR_SOUND_URL` | URL del efecto de línea completada | mp3 de Mixkit |
 
 La velocidad inicial de caída ya no es una constante: se deriva del nivel inicial con `dropIntervalFor(startLevel)` = `max(100, 1000 − (startLevel − 1) × 90)` ms, así que con nivel inicial `1` sigue siendo `1000` ms. Ojo: el suelo de `100` ms se alcanza ya en el nivel `11`, así que los niveles iniciales `11`–`15` caen a la misma velocidad y solo se diferencian en el multiplicador de puntuación.
+
+Para cambiar el sonido basta con sustituir `LINE_CLEAR_SOUND_URL` por otra URL de audio (o por una ruta local, si prefieres guardar el fichero en el repo); el volumen se ajusta en `createLineClearSound()` con `audio.volume`.
 
 Los colores del menú de pausa son variables CSS en `style.css` (`--menu-bg`, `--menu-border`, `--menu-shadow`, `--select-bg`, `--btn-secondary-bg`, `--btn-secondary-hover`, `--btn-secondary-text`), definidas tanto en `:root` como en `:root[data-theme="light"]`.
 
