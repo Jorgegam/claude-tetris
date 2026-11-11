@@ -231,6 +231,16 @@ function sanitizeName(value) {
   return name || DEFAULT_NAME;
 }
 
+// Clave para reconocer al mismo jugador: ignora mayúsculas y acentos, de modo que
+// «Ana», «ana» y «ANÁ» comparten un único record. Pasa por sanitizeName para que el
+// nombre vacío («Anónimo») se agrupe igual que cualquier otro.
+function nameKey(value) {
+  return sanitizeName(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 function toCount(value) {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
@@ -281,9 +291,21 @@ function loadScores() {
   return parsed.filter(isValidEntry).map(normalizeEntry).sort(byScoreDesc).slice(0, MAX_SCORES);
 }
 
+// Una fila por jugador: si el nombre ya está en la tabla se sobrescribe su entrada,
+// pero solo cuando la nueva puntuación supera a la registrada. Un empate no sobrescribe.
+// outcome: 'saved' (guardado), 'kept' (ya tenía una marca mejor), 'failed' (sin escritura).
 function saveScore(entry) {
   const saved = normalizeEntry({ ...entry, date: new Date().toISOString() });
   const list = loadScores();
+  const key = nameKey(saved.name);
+  const prevIndex = list.findIndex((e) => nameKey(e.name) === key);
+  if (prevIndex >= 0) {
+    const previous = list[prevIndex];
+    if (saved.score <= previous.score) {
+      return { scores: list, index: prevIndex, outcome: 'kept', previous };
+    }
+    list.splice(prevIndex, 1); // se reemplaza el record anterior, no se duplica la fila
+  }
   list.push(saved);
   list.sort(byScoreDesc);
   const top = list.slice(0, MAX_SCORES);
@@ -293,7 +315,7 @@ function saveScore(entry) {
     stored = true;
   } catch (e) { /* ignorar */ }
   // stored = false cuando no se pudo escribir (modo privado, cuota agotada).
-  return { scores: top, index: top.indexOf(saved), stored };
+  return { scores: top, index: top.indexOf(saved), outcome: stored ? 'saved' : 'failed' };
 }
 
 function resetScores() {
@@ -645,8 +667,16 @@ function saveCurrentScore() {
   nameInput.blur();
   recordMsg.hidden = true;
   nameForm.hidden = true;
-  if (result.stored) {
+  if (result.outcome === 'saved') {
     showStartScreen(result.index, result.scores);
+    return;
+  }
+  if (result.outcome === 'kept') {
+    // Ese nombre ya tenía una marca mejor: se conserva y se resalta su fila.
+    showStartScreen(result.index, result.scores);
+    startMsg.textContent =
+      `Ya tienes un mejor record: ${result.previous.score.toLocaleString()} puntos. Se conserva el anterior.`;
+    startMsg.hidden = false;
     return;
   }
   // No se pudo escribir: se muestra la tabla real (sin el record) y se avisa.
