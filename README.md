@@ -17,6 +17,7 @@ Implementación del clásico **Tetris** en JavaScript vanilla, usando HTML5 Canv
     - [Opción 1: abrir el archivo directamente](#opción-1-abrir-el-archivo-directamente)
     - [Opción 2: servidor local (recomendado)](#opción-2-servidor-local-recomendado)
   - [Controles](#controles)
+    - [Menú de pausa](#menú-de-pausa)
   - [Cómo funciona](#cómo-funciona)
     - [1. `index.html`](#1-indexhtml)
     - [2. `style.css`](#2-stylecss)
@@ -40,9 +41,10 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Pieza fantasma** (_ghost piece_): muestra dónde aterrizará la pieza actual.
 - **Vista previa** de la siguiente pieza.
 - **Sistema de puntuación** clásico de Tetris (100 / 300 / 500 / 800 multiplicado por nivel).
-- **Niveles** que aumentan cada 10 líneas y aceleran la caída.
-- **Pausa** y **Game Over** con opción de reinicio.
+- **Niveles** que aumentan cada 10 líneas y aceleran la caída, sin bajar nunca del nivel con el que arrancó la partida.
 - **Pantalla de inicio** con la tabla de records: el juego ya no arranca solo, empieza al pulsar **Jugar**.
+- **Menú de pausa** con _Reanudar_, _Reiniciar_, una vista interna de _Controles_ y un selector de **nivel inicial** (1–15) que se guarda en `localStorage`.
+- **Game Over** con opción de reinicio.
 - **Tabla de records local** (top 5) guardada en `localStorage`, con nombre, puntos, líneas, nivel y mejor combo de cada partida, más dos agregados calculados sobre los records guardados: **mejor combo** (la racha más alta registrada) y **líneas máximas** (el mejor total de líneas de una partida). Incluye botón **Resetear records** (pide confirmación).
 - **Combos**: se registra la racha de piezas consecutivas que limpian línea; el máximo de la partida se guarda junto al record.
 
@@ -87,7 +89,19 @@ Después abre `http://localhost:8000` en el navegador.
 | `↑` o `X` | Rotar la pieza en sentido horario |
 | `↓`       | Soft drop (bajar más rápido)      |
 | `Espacio` | Hard drop (caída instantánea)     |
-| `P`       | Pausar / reanudar                 |
+| `P`       | Abrir / cerrar el menú de pausa   |
+| `Esc`     | Igual que `P`; dentro de la vista de controles vuelve al menú |
+
+### Menú de pausa
+
+Con `P` o `Esc` se abre un menú sobre el tablero (no es un simple cartel de «PAUSA»):
+
+- **Reanudar** — cierra el menú y continúa la partida.
+- **Reiniciar** — empieza una partida nueva sin recargar la página.
+- **Ver controles** — muestra la lista de teclas dentro del propio menú, con un botón **Volver**.
+- **Nivel inicial** — selector de `1` a `15`. Se guarda en `localStorage` bajo la clave `tetris.startLevel` y se aplica **en la siguiente partida**: el nivel y la velocidad de caída arrancan desde ahí y el nivel nunca baja de ese valor al limpiar líneas.
+
+Mientras el menú está abierto, las teclas de juego quedan bloqueadas, y cada botón o selector hace `blur()` después de usarse para que al reanudar no se cuele un movimiento con `Space`, `Enter` o las flechas.
 
 Botones de la interfaz:
 
@@ -117,7 +131,7 @@ Define la estructura visual:
 
 - Un `<canvas id="board">` de **300 × 600** píxeles donde se renderiza el tablero.
 - Un panel lateral con `SCORE`, `LINES`, `LEVEL`, vista de la siguiente pieza y la lista de controles.
-- Dos overlays separados: `#start-overlay` (pantalla de inicio con la tabla de records, el mejor combo, las líneas máximas y los botones **Jugar** / **Resetear records**) y `#overlay`, el overlay de partida para los estados **PAUSA** y **GAME OVER**, que además contiene el campo de nombre para guardar el record.
+- Tres overlays separados: `#start-overlay` (pantalla de inicio con la tabla de records, el mejor combo, las líneas máximas y los botones **Jugar** / **Resetear records**), `#overlay` para el estado **GAME OVER**, que además contiene el campo de nombre para guardar el record, y `#pause-menu` con el **menú de pausa**, que contiene dos vistas (`#pause-view-main` y `#pause-view-controls`) de las que solo una está visible a la vez.
 
 ### 2. `style.css`
 
@@ -134,7 +148,8 @@ Contiene toda la lógica del juego. A grandes rasgos:
 - **Game loop** (`loop`): basado en `requestAnimationFrame`, acumula el tiempo transcurrido y baja la pieza una fila cuando se supera `dropInterval`.
 - **Limpieza de líneas** (`clearLines`): recorre el tablero de abajo hacia arriba; cada fila completa se elimina y se inserta una vacía en la cima.
 - **Puntuación**: usa la tabla clásica `[0, 100, 300, 500, 800]` multiplicada por el nivel actual; el hard drop suma 2 puntos por celda recorrida y el soft drop 1 punto por fila.
-- **Nivel y velocidad**: el nivel sube cada 10 líneas; la velocidad de caída se calcula como `max(100, 1000 − (level − 1) × 90)` milisegundos.
+- **Nivel y velocidad**: el nivel sube cada 10 líneas y nunca baja del nivel con el que arrancó la partida (`max(gameStartLevel, ⌊lines / 10⌋ + 1)`); la velocidad de caída se calcula como `max(100, 1000 − (level − 1) × 90)` milisegundos (`dropIntervalFor`). `init()` copia el nivel elegido en `gameStartLevel`, así que cambiar el selector a mitad de partida no afecta a la partida en curso.
+- **Menú de pausa** (`openPauseMenu` / `closePauseMenu` / `showMenuView`): detiene el `requestAnimationFrame`, muestra el overlay del menú y alterna entre la vista principal y la de controles. El nivel inicial se lee y se escribe en `localStorage` dentro de `try/catch`, igual que la preferencia de tema.
 - **Ghost piece** (`ghostY`): proyecta la posición final de la pieza actual hacia abajo y la dibuja con `globalAlpha = 0.2`.
 - **Combos** (`lockPiece`): `clearLines()` devuelve cuántas líneas quitó; si quitó alguna se incrementa `comboStreak` (y se actualiza `maxCombo`), y si no, la racha vuelve a `0`.
 - **Records** (`loadScores` / `saveScore` / `resetScores`): top 5 persistido en `localStorage` bajo la clave `tetris.highscores`. Cada entrada es `{ name, score, lines, level, maxCombo, date }`. Todos los accesos van dentro de `try/catch` y `loadScores()` valida la forma de lo leído (array, campos numéricos), devolviendo una lista vacía si el JSON está corrupto o viene de otra versión.
@@ -198,7 +213,12 @@ Algunos parámetros fáciles de tunear en `game.js`:
 | `BLOCK`        | Tamaño en píxeles de cada celda          | `30`                  |
 | `COLORS`       | Paleta de colores por tipo de pieza      | 7 colores             |
 | `LINE_SCORES`  | Puntos por 1, 2, 3 o 4 líneas eliminadas | `[0,100,300,500,800]` |
-| `dropInterval` | Velocidad inicial de caída en ms         | `1000`                |
+| `MIN_START_LEVEL` / `MAX_START_LEVEL` | Rango del selector de nivel inicial | `1` / `15` |
+| `START_LEVEL_KEY` | Clave de `localStorage` del nivel inicial | `tetris.startLevel` |
+
+La velocidad inicial de caída ya no es una constante: se deriva del nivel inicial con `dropIntervalFor(startLevel)` = `max(100, 1000 − (startLevel − 1) × 90)` ms, así que con nivel inicial `1` sigue siendo `1000` ms. Ojo: el suelo de `100` ms se alcanza ya en el nivel `11`, así que los niveles iniciales `11`–`15` caen a la misma velocidad y solo se diferencian en el multiplicador de puntuación.
+
+Los colores del menú de pausa son variables CSS en `style.css` (`--menu-bg`, `--menu-border`, `--menu-shadow`, `--select-bg`, `--btn-secondary-bg`, `--btn-secondary-hover`, `--btn-secondary-text`), definidas tanto en `:root` como en `:root[data-theme="light"]`.
 
 Y los parámetros de la tabla de records:
 
