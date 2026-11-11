@@ -159,6 +159,53 @@ const START_LEVEL_KEY = 'tetris.startLevel';
 const MIN_START_LEVEL = 1;
 const MAX_START_LEVEL = 15;
 
+// ===== Audio (SFX) — self-contained block, see README =====
+// Sound effects are plain <audio> elements pointing at files vendored in
+// assets/sounds. Playback can fail for reasons the game cannot control
+// (autoplay policy, missing file, codec), so every helper takes the element
+// as a parameter, degrades in silence and never throws.
+
+const SFX_VOLUME = 0.6;
+
+function playSfx(el) {
+  if (!el) return;
+  try {
+    el.volume = SFX_VOLUME;
+    el.currentTime = 0; // restart: the same clip can fire twice in a row
+    const played = el.play();
+    // play() returns a promise that rejects when the browser blocks playback;
+    // an uncaught rejection would log an error on every game over.
+    if (played && typeof played.catch === 'function') played.catch(() => {});
+  } catch (e) { /* ignorar: el audio nunca debe romper el juego */ }
+}
+
+function stopSfx(el) {
+  if (!el) return;
+  try {
+    el.pause();
+    el.currentTime = 0;
+  } catch (e) { /* ignorar */ }
+}
+
+// Safari and iOS only let a media element play once it has been started from
+// inside a user gesture, and the game over happens on a timer, not on a click.
+// Called from the «Jugar» button: the clip starts muted and is rewound at
+// once, so nobody hears it but the element stays unlocked for the session.
+function primeSfx(el) {
+  if (!el) return;
+  try {
+    el.muted = true; // iOS ignores `volume`, but honours `muted`
+    const rewind = () => {
+      stopSfx(el);
+      el.muted = false;
+    };
+    const played = el.play();
+    if (played && typeof played.then === 'function') played.then(rewind, rewind);
+    else rewind();
+  } catch (e) { /* ignorar */ }
+}
+// ===== End audio (SFX) =====
+
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
@@ -194,6 +241,7 @@ const menuRestartBtn = document.getElementById('menu-restart-btn');
 const showControlsBtn = document.getElementById('show-controls-btn');
 const controlsBackBtn = document.getElementById('controls-back-btn');
 const skinSelect = document.getElementById('skin-select');
+const gameOverSound = document.getElementById('game-over-sound');
 
 let gridColor = '#22222e';
 let ghostAlpha = 0.2;
@@ -658,6 +706,8 @@ function endGame() {
     nameInput.value = '';
     nameInput.focus();
   }
+  // Real defeat only: stopGame() (abandonar partida) stays silent on purpose.
+  playSfx(gameOverSound);
 }
 
 function saveCurrentScore() {
@@ -755,6 +805,7 @@ function loop(ts) {
 function init() {
   cancelAnimationFrame(animId);
   animId = null;
+  stopSfx(gameOverSound); // reiniciar corta el sonido de la derrota anterior
   board = createBoard();
   score = 0;
   lines = 0;
@@ -834,6 +885,7 @@ restartBtn.addEventListener('click', e => {
 });
 
 playBtn.addEventListener('click', e => {
+  primeSfx(gameOverSound); // first user gesture: unlocks playback for the session
   init();
   e.currentTarget.blur();
 });
