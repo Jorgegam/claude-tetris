@@ -37,6 +37,18 @@
   --btn-secondary-bg: #262636;
   --btn-secondary-hover: #32324a;
   --btn-secondary-text: #d7d7e5;
+  --control-bg: #1a1a25;
+
+  /* Paletas de tablero por skin (ver reglas [data-skin] más abajo) */
+  --skin-neon-board-bg: #050508;
+  --skin-neon-grid: #1b1b3c;
+  --skin-neon-ghost-alpha: 0.25;
+  --skin-pastel-board-bg: #f8f5fb;
+  --skin-pastel-grid: #e4dced;
+  --skin-pastel-ghost-alpha: 0.5;
+  --skin-pixel-board-bg: #141420;
+  --skin-pixel-grid: #2b2b3c;
+  --skin-pixel-ghost-alpha: 0.3;
 }
 
 :root[data-theme="light"] {
@@ -71,6 +83,32 @@
   --btn-secondary-bg: #e6e8f2;
   --btn-secondary-hover: #d7dbeb;
   --btn-secondary-text: #2a2d42;
+  --control-bg: #ffffff;
+}
+
+/* ---- Skins (después de los temas para ganar en cascada sin !important) ----
+   Cada skin solo redefine los colores del tablero, de modo que skin y tema
+   siguen siendo independientes: la skin manda en el tablero, el tema en el
+   resto de la interfaz. `retro` no redefine nada y hereda los del tema.
+   Cada skin fija también su propio --ghost-alpha: como el fondo del tablero
+   deja de depender del tema, el del tema ya no sirve (una pieza fantasma
+   pastel al 0.2 sobre el tablero claro de Pastel es invisible). */
+:root[data-skin="neon"] {
+  --board-bg: var(--skin-neon-board-bg);
+  --grid: var(--skin-neon-grid);
+  --ghost-alpha: var(--skin-neon-ghost-alpha);
+}
+
+:root[data-skin="pastel"] {
+  --board-bg: var(--skin-pastel-board-bg);
+  --grid: var(--skin-pastel-grid);
+  --ghost-alpha: var(--skin-pastel-ghost-alpha);
+}
+
+:root[data-skin="pixel"] {
+  --board-bg: var(--skin-pixel-board-bg);
+  --grid: var(--skin-pixel-grid);
+  --ghost-alpha: var(--skin-pixel-ghost-alpha);
 }
 
 body {
@@ -101,7 +139,7 @@ body {
   position: fixed;
   top: 16px;
   right: 16px;
-  background: var(--board-bg);
+  background: var(--control-bg);
   color: var(--text);
   border: 1px solid var(--board-border);
   border-radius: 20px;
@@ -168,6 +206,27 @@ body {
   border: 1px solid var(--board-border);
   background: var(--board-bg);
   border-radius: 4px;
+}
+
+/* ---- Selector de skin ---- */
+#skin-select {
+  background: var(--control-bg);
+  color: var(--text);
+  border: 1px solid var(--board-border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#skin-select:hover {
+  border-color: var(--accent);
+}
+
+#skin-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* ---- Controles ---- */

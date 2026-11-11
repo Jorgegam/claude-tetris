@@ -26,6 +26,7 @@ Implementación del clásico **Tetris** en JavaScript vanilla, usando HTML5 Canv
   - [Tecnologías](#tecnologías)
   - [Estructura del proyecto](#estructura-del-proyecto)
   - [Personalización](#personalización)
+    - [Añadir una skin nueva](#añadir-una-skin-nueva)
   - [Licencia](#licencia)
 
 ---
@@ -47,6 +48,7 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Game Over** con opción de reinicio.
 - **Tabla de records local** (top 5) guardada en `localStorage`, con nombre, puntos, líneas, nivel y mejor combo de cada partida, más dos agregados calculados sobre los records guardados: **mejor combo** (la racha más alta registrada) y **líneas máximas** (el mejor total de líneas de una partida). Incluye botón **Resetear records** (pide confirmación).
 - **Combos**: se registra la racha de piezas consecutivas que limpian línea; el máximo de la partida se guarda junto al record.
+- **Temas claro / oscuro** y **cuatro skins visuales** (Retro, Neón, Pastel y Pixel art) que cambian la paleta y el dibujado de los bloques. Ambas preferencias se recuerdan entre partidas.
 
 ---
 
@@ -119,6 +121,17 @@ Mientras el campo de nombre tiene el foco, las teclas de juego quedan desactivad
 
 También hay un botón **☀ Claro / 🌙 Oscuro** (esquina superior derecha) para alternar el tema. Por defecto el juego arranca en modo oscuro y la preferencia se guarda en `localStorage`. Los colores del tema se definen como variables CSS en `style.css` (`:root` y `:root[data-theme="light"]`).
 
+En el panel lateral, el desplegable **SKIN** cambia el aspecto de los bloques entre cuatro estilos:
+
+| Skin          | Aspecto                                                                 |
+| ------------- | ----------------------------------------------------------------------- |
+| **Retro**     | Bloques cuadrados planos con un reflejo superior (estilo por defecto).  |
+| **Neón**      | Bloques con _glow_ (`shadowBlur`) y núcleo claro sobre tablero negro.   |
+| **Pastel**    | Colores suaves y esquinas redondeadas (`roundRect`).                    |
+| **Pixel art** | Textura de ajedrezado en celdas de 2 × 2 píxeles sobre cada bloque.     |
+
+El cambio se aplica en caliente (sin recargar) y se guarda en `localStorage` bajo la clave `tetris.skin`. El tema y la skin son independientes: la skin manda en los colores del tablero y de las piezas, el tema en el resto de la interfaz.
+
 ---
 
 ## Cómo funciona
@@ -130,7 +143,7 @@ El juego se compone de tres archivos que cooperan:
 Define la estructura visual:
 
 - Un `<canvas id="board">` de **300 × 600** píxeles donde se renderiza el tablero.
-- Un panel lateral con `SCORE`, `LINES`, `LEVEL`, vista de la siguiente pieza y la lista de controles.
+- Un panel lateral con `SCORE`, `LINES`, `LEVEL`, vista de la siguiente pieza, el selector de `SKIN` y la lista de controles.
 - Tres overlays separados: `#start-overlay` (pantalla de inicio con la tabla de records, el mejor combo, las líneas máximas y los botones **Jugar** / **Resetear records**), `#overlay` para el estado **GAME OVER**, que además contiene el campo de nombre para guardar el record, y `#pause-menu` con el **menú de pausa**, que contiene dos vistas (`#pause-view-main` y `#pause-view-controls`) de las que solo una está visible a la vez.
 
 ### 2. `style.css`
@@ -211,7 +224,8 @@ Algunos parámetros fáciles de tunear en `game.js`:
 | `COLS`         | Columnas del tablero                     | `10`                  |
 | `ROWS`         | Filas del tablero                        | `20`                  |
 | `BLOCK`        | Tamaño en píxeles de cada celda          | `30`                  |
-| `COLORS`       | Paleta de colores por tipo de pieza      | 7 colores             |
+| `SKINS`        | Skins disponibles (paleta + dibujado)    | 4 skins               |
+| `DEFAULT_SKIN` | Skin inicial y de respaldo               | `'retro'`             |
 | `LINE_SCORES`  | Puntos por 1, 2, 3 o 4 líneas eliminadas | `[0,100,300,500,800]` |
 | `MIN_START_LEVEL` / `MAX_START_LEVEL` | Rango del selector de nivel inicial | `1` / `15` |
 | `START_LEVEL_KEY` | Clave de `localStorage` del nivel inicial | `tetris.startLevel` |
@@ -242,6 +256,32 @@ Colores de la tabla de records (en `:root` y `:root[data-theme="light"]` de `sty
 | `--secondary-bg` / `--secondary-border` | Botones secundarios                 |
 
 > Si cambias `COLS`, `ROWS` o `BLOCK`, recuerda ajustar también `width` y `height` del `<canvas id="board">` en `index.html` para que coincida (`COLS × BLOCK` × `ROWS × BLOCK`).
+
+### Añadir una skin nueva
+
+Todo el renderizado pasa por `drawBlock()`, que delega en la skin activa. Para añadir una skin basta con:
+
+1. **Declarar la entrada en `SKINS`** (`game.js`), con una clave nueva (p. ej. `mono`):
+
+   ```js
+   mono: {
+     colors: [null, '#eee', '#ddd', '#ccc', '#bbb', '#aaa', '#999', '#888'],
+     draw(context, px, py, w, color) {
+       context.fillStyle = color;
+       context.fillRect(px, py, w, w);
+     },
+   },
+   ```
+
+   - `colors` tiene **8 posiciones**: el índice `0` debe quedar en `null` (celda vacía) y las 7 siguientes corresponden a las piezas I, O, T, S, Z, J, L.
+   - `draw(context, px, py, w, color)` recibe ya resueltas las coordenadas en píxeles de la esquina superior izquierda (`px`, `py`) y el lado del bloque (`w`). El `globalAlpha` (pieza fantasma) lo gestiona `drawBlock()`, no la skin.
+   - Si tu `draw` toca estado del contexto (`shadowBlur`, `shadowColor`, `lineWidth`…), **restáuralo antes de salir**, como hace la skin `neon`; en otro caso se filtra a la rejilla y a las demás piezas.
+
+2. **Añadir el `<option>`** al `<select id="skin-select">` de `index.html` con ese mismo `value`, y meter la clave en el array de validación del script inline del `<head>` (el que fija `data-skin` antes de pintar para evitar el flash).
+
+3. **(Opcional) Colores del tablero**: si la skin necesita otro fondo o rejilla, declara las variables en `:root` y añade una regla `:root[data-skin="mono"]` en `style.css`. Debe ir **después** del bloque `:root[data-theme="light"]` para ganar en cascada sin `!important`. `applySkin()` relee `--grid` y `--ghost-alpha` automáticamente. Si redefines `--board-bg`, redefine también `--ghost-alpha`: el del tema está calibrado para el fondo del tema, no para el de tu skin.
+
+Cualquier valor guardado en `localStorage` que no corresponda a una skin conocida cae a `DEFAULT_SKIN` en lugar de romper el render.
 
 ---
 

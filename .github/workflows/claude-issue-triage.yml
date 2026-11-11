@@ -89,7 +89,7 @@ jobs:
                rotateCW, tryRotate, merge, clearLines, ghostY, hardDrop, softDrop,
                lockPiece, spawn, updateHUD, drawBlock, drawGrid, draw, drawNext,
                endGame, togglePause, loop e init; y las constantes COLS, ROWS,
-               BLOCK, COLORS, PIECES y LINE_SCORES.
+               BLOCK, SKINS, DEFAULT_SKIN, PIECES y LINE_SCORES.
             3. Busca duplicados con `triage.sh similar "..."` usando 3-6 palabras
                clave del issue.
             4. Aplica los labels con `triage.sh apply-labels`. Usa SOLO labels que
