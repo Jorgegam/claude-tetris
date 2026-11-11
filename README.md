@@ -46,7 +46,7 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Pantalla de inicio** con la tabla de records: el juego ya no arranca solo, empieza al pulsar **Jugar**.
 - **Menú de pausa** con _Reanudar_, _Reiniciar_, una vista interna de _Controles_ y un selector de **nivel inicial** (1–15) que se guarda en `localStorage`.
 - **Game Over** con opción de reinicio.
-- **Tabla de records local** (top 5) guardada en `localStorage`, con nombre, puntos, líneas, nivel y mejor combo de cada partida, más dos agregados calculados sobre los records guardados: **mejor combo** (la racha más alta registrada) y **líneas máximas** (el mejor total de líneas de una partida). Incluye botón **Resetear records** (pide confirmación).
+- **Tabla de records local** (top 5) guardada en `localStorage`, con nombre, puntos, líneas, nivel y mejor combo de cada partida, **una sola fila por jugador** (un nombre ya registrado sobrescribe su propio record solo si mejora su puntuación), más dos agregados calculados sobre los records guardados: **mejor combo** (la racha más alta registrada) y **líneas máximas** (el mejor total de líneas de una partida). Incluye botón **Resetear records** (pide confirmación).
 - **Combos**: se registra la racha de piezas consecutivas que limpian línea; el máximo de la partida se guarda junto al record.
 - **Temas claro / oscuro** y **cuatro skins visuales** (Retro, Neón, Pastel y Pixel art) que cambian la paleta y el dibujado de los bloques. Ambas preferencias se recuerdan entre partidas.
 
@@ -119,6 +119,8 @@ El botón **Ver records** solo aparece en Game Over (no durante la pausa), y vol
 
 Mientras el campo de nombre tiene el foco, las teclas de juego quedan desactivadas (se puede escribir con tranquilidad) y `Enter` guarda la puntuación. Si el nombre se deja vacío se guarda como `Anónimo`.
 
+Cada jugador ocupa **una sola fila**: si el nombre escrito ya está en la tabla, su record anterior se sobrescribe cuando la nueva puntuación es **mayor**. Si no la supera (o la iguala) no se guarda nada, no se duplica la fila y la pantalla de inicio avisa con «Ya tienes un mejor record: N puntos». La comparación de nombres ignora mayúsculas y acentos, así que `Ana`, `ana` y `ANÁ` son el mismo jugador.
+
 También hay un botón **☀ Claro / 🌙 Oscuro** (esquina superior derecha) para alternar el tema. Por defecto el juego arranca en modo oscuro y la preferencia se guarda en `localStorage`. Los colores del tema se definen como variables CSS en `style.css` (`:root` y `:root[data-theme="light"]`).
 
 En el panel lateral, el desplegable **SKIN** cambia el aspecto de los bloques entre cuatro estilos:
@@ -165,7 +167,7 @@ Contiene toda la lógica del juego. A grandes rasgos:
 - **Menú de pausa** (`openPauseMenu` / `closePauseMenu` / `showMenuView`): detiene el `requestAnimationFrame`, muestra el overlay del menú y alterna entre la vista principal y la de controles. El nivel inicial se lee y se escribe en `localStorage` dentro de `try/catch`, igual que la preferencia de tema.
 - **Ghost piece** (`ghostY`): proyecta la posición final de la pieza actual hacia abajo y la dibuja con `globalAlpha = 0.2`.
 - **Combos** (`lockPiece`): `clearLines()` devuelve cuántas líneas quitó; si quitó alguna se incrementa `comboStreak` (y se actualiza `maxCombo`), y si no, la racha vuelve a `0`.
-- **Records** (`loadScores` / `saveScore` / `resetScores`): top 5 persistido en `localStorage` bajo la clave `tetris.highscores`. Cada entrada es `{ name, score, lines, level, maxCombo, date }`. Todos los accesos van dentro de `try/catch` y `loadScores()` valida la forma de lo leído (array, campos numéricos), devolviendo una lista vacía si el JSON está corrupto o viene de otra versión.
+- **Records** (`loadScores` / `saveScore` / `resetScores`): top 5 persistido en `localStorage` bajo la clave `tetris.highscores`. Cada entrada es `{ name, score, lines, level, maxCombo, date }`. Todos los accesos van dentro de `try/catch` y `loadScores()` valida la forma de lo leído (array, campos numéricos), devolviendo una lista vacía si el JSON está corrupto o viene de otra versión. `saveScore()` agrupa por `nameKey()` (nombre sin mayúsculas ni acentos) para que cada jugador tenga una única fila, y devuelve `outcome`: `'saved'` (guardado), `'kept'` (ya existía una marca igual o mejor con ese nombre, no se escribe nada) o `'failed'` (`localStorage` no disponible).
 
 ### Flujo del juego
 
@@ -187,7 +189,7 @@ init()
    keydown → mover / rotar / soft-drop / hard-drop / pausa
 ```
 
-Cuando una pieza recién generada ya colisiona al aparecer (`spawn`), se dispara `endGame()` y se muestra el overlay de **Game Over**. Si la puntuación entra en el top 5, el overlay anuncia el record y muestra el campo de nombre; al guardar se vuelve a la pantalla de inicio con la fila nueva resaltada.
+Cuando una pieza recién generada ya colisiona al aparecer (`spawn`), se dispara `endGame()` y se muestra el overlay de **Game Over**. Si la puntuación entra en el top 5, el overlay anuncia el record y muestra el campo de nombre; al guardar se vuelve a la pantalla de inicio con la fila resaltada: la nueva, o la que ya tenía ese nombre si su marca anterior era mejor.
 
 ---
 
