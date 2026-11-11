@@ -154,6 +154,13 @@
     </div>
   </div>
 
+  <!--
+    Sonido de derrota. El fichero vive en el repo: el juego debe sonar también
+    abierto con file:// y sin conexión. preload="auto" evita el corte en el
+    primer game over. Sin `controls`, así que el navegador no lo renderiza.
+  -->
+  <audio id="game-over-sound" src="assets/sounds/game-over.wav" preload="auto"></audio>
+
   <script src="game.js"></script>
 </body>
 </html>
