@@ -86,6 +86,8 @@ Después abre `http://localhost:8000` en el navegador.
 | `Espacio` | Hard drop (caída instantánea)     |
 | `P`       | Pausar / reanudar                 |
 
+También hay un botón **☀ Claro / 🌙 Oscuro** (esquina superior derecha) para alternar el tema. Por defecto el juego arranca en modo oscuro y la preferencia se guarda en `localStorage`. Los colores del tema se definen como variables CSS en `style.css` (`:root` y `:root[data-theme="light"]`).
+
 ---
 
 ## Cómo funciona
