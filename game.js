@@ -4,16 +4,138 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
-const COLORS = [
-  null,
-  '#4dd0e1', // I - cyan
-  '#ffd54f', // O - yellow
-  '#ba68c8', // T - purple
-  '#81c784', // S - green
-  '#e57373', // Z - red
-  '#90caf9', // J - pale blue
-  '#ffb74d', // L - orange
-];
+// Shared canvas shading tokens used by the skin renderers.
+const RETRO_HIGHLIGHT = 'rgba(255,255,255,0.12)';
+const NEON_GLOW = 12;
+const NEON_CORE = 'rgba(255,255,255,0.35)';
+const PASTEL_RADIUS = 7;
+const PASTEL_HIGHLIGHT = 'rgba(255,255,255,0.45)';
+const PIXEL_CELL = 2;
+const PIXEL_LIGHT = 'rgba(255,255,255,0.18)';
+const PIXEL_DARK = 'rgba(0,0,0,0.18)';
+
+const DEFAULT_SKIN = 'retro';
+
+// The pixel skin's 2x2 texture is ~200 fills per block, which would be tens of
+// thousands of fills per frame on a full board. Each color/size combination is
+// rasterized once into an offscreen canvas and then blitted.
+const pixelTiles = new Map();
+
+function pixelTile(color, w) {
+  const side = Math.max(1, Math.round(w));
+  const key = color + '@' + side;
+  const cached = pixelTiles.get(key);
+  if (cached) return cached;
+  const tile = document.createElement('canvas');
+  tile.width = side;
+  tile.height = side;
+  const tctx = tile.getContext('2d');
+  tctx.fillStyle = color;
+  tctx.fillRect(0, 0, side, side);
+  for (let y = 0; y < side; y += PIXEL_CELL) {
+    for (let x = 0; x < side; x += PIXEL_CELL) {
+      const light = ((x / PIXEL_CELL) + (y / PIXEL_CELL)) % 2 === 0;
+      tctx.fillStyle = light ? PIXEL_LIGHT : PIXEL_DARK;
+      tctx.fillRect(x, y, Math.min(PIXEL_CELL, side - x), Math.min(PIXEL_CELL, side - y));
+    }
+  }
+  pixelTiles.set(key, tile);
+  return tile;
+}
+
+// Every skin owns its 7-color palette (index 0 stays null, matching the
+// board's empty cell) plus the primitive that paints a single block. `draw`
+// receives resolved pixel coordinates: px/py is the top-left corner, w the
+// side of the block.
+const SKINS = {
+  retro: {
+    colors: [
+      null,
+      '#4dd0e1', // I - cyan
+      '#ffd54f', // O - yellow
+      '#ba68c8', // T - purple
+      '#81c784', // S - green
+      '#e57373', // Z - red
+      '#90caf9', // J - pale blue
+      '#ffb74d', // L - orange
+    ],
+    draw(context, px, py, w, color) {
+      context.fillStyle = color;
+      context.fillRect(px, py, w, w);
+      context.fillStyle = RETRO_HIGHLIGHT;
+      context.fillRect(px, py, w, 4);
+    },
+  },
+  neon: {
+    colors: [
+      null,
+      '#00e5ff', // I
+      '#ffea00', // O
+      '#d500f9', // T
+      '#00e676', // S
+      '#ff1744', // Z
+      '#2979ff', // J
+      '#ff9100', // L
+    ],
+    draw(context, px, py, w, color) {
+      context.shadowColor = color;
+      context.shadowBlur = NEON_GLOW;
+      context.fillStyle = color;
+      context.fillRect(px, py, w, w);
+      // Reset the shadow right away, otherwise the glow bleeds into the grid
+      // and the ghost piece on every later draw call.
+      context.shadowBlur = 0;
+      context.shadowColor = 'transparent';
+      context.fillStyle = NEON_CORE;
+      context.fillRect(px + w * 0.3, py + w * 0.3, w * 0.4, w * 0.4);
+    },
+  },
+  pastel: {
+    colors: [
+      null,
+      '#a8e6e1', // I
+      '#fdf0a9', // O
+      '#d9bdf0', // T
+      '#bce6b8', // S
+      '#f5b7b1', // Z
+      '#aecbfa', // J
+      '#f8cba6', // L
+    ],
+    draw(context, px, py, w, color) {
+      context.fillStyle = color;
+      // roundRect is widely available, but fall back to square blocks.
+      if (typeof context.roundRect === 'function') {
+        context.beginPath();
+        context.roundRect(px, py, w, w, PASTEL_RADIUS);
+        context.fill();
+        context.fillStyle = PASTEL_HIGHLIGHT;
+        context.beginPath();
+        context.roundRect(px + 3, py + 3, w - 6, (w - 6) / 3, PASTEL_RADIUS / 2);
+        context.fill();
+      } else {
+        context.fillRect(px, py, w, w);
+        context.fillStyle = PASTEL_HIGHLIGHT;
+        context.fillRect(px + 3, py + 3, w - 6, (w - 6) / 3);
+      }
+    },
+  },
+  pixel: {
+    colors: [
+      null,
+      '#2ec4b6', // I
+      '#ffd166', // O
+      '#9d4edd', // T
+      '#70c13c', // S
+      '#e63946', // Z
+      '#4361ee', // J
+      '#f77f00', // L
+    ],
+    draw(context, px, py, w, color) {
+      // Checkerboard texture of 2x2 px cells, cached per color and size.
+      context.drawImage(pixelTile(color, w), px, py, w, w);
+    },
+  },
+};
 
 const PIECES = [
   null,
@@ -40,9 +162,21 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeBtn = document.getElementById('theme-toggle');
+const skinSelect = document.getElementById('skin-select');
 
 let gridColor = '#22222e';
 let ghostAlpha = 0.2;
+let currentSkin = DEFAULT_SKIN;
+
+// The theme and the skin can both change --grid / --ghost-alpha, so the
+// re-read of those CSS custom properties lives in a single place.
+function refreshStyleVars() {
+  const styles = getComputedStyle(document.documentElement);
+  gridColor = styles.getPropertyValue('--grid').trim() || gridColor;
+  const alpha = parseFloat(styles.getPropertyValue('--ghost-alpha'));
+  // Number.isFinite, not ||: 0 is a legitimate value (ghost piece disabled).
+  ghostAlpha = Number.isFinite(alpha) ? alpha : ghostAlpha;
+}
 
 function applyTheme(theme, persist) {
   document.documentElement.dataset.theme = theme;
@@ -53,10 +187,31 @@ function applyTheme(theme, persist) {
   themeBtn.textContent = light ? '🌙 Oscuro' : '☀ Claro';
   themeBtn.setAttribute('aria-pressed', String(light));
   themeBtn.setAttribute('aria-label', light ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro');
-  const styles = getComputedStyle(document.documentElement);
-  gridColor = styles.getPropertyValue('--grid').trim() || gridColor;
-  ghostAlpha = parseFloat(styles.getPropertyValue('--ghost-alpha')) || ghostAlpha;
+  refreshStyleVars();
   if (board) draw();
+}
+
+function storedSkin() {
+  try {
+    return localStorage.getItem('tetris.skin');
+  } catch (e) {
+    return null; // localStorage no disponible: se usa la skin por defecto
+  }
+}
+
+function applySkin(skin, persist) {
+  // Unknown values (hand-edited storage, renamed skin) fall back to retro.
+  currentSkin = SKINS[skin] ? skin : DEFAULT_SKIN;
+  document.documentElement.dataset.skin = currentSkin;
+  if (persist) {
+    try { localStorage.setItem('tetris.skin', currentSkin); } catch (e) { /* ignorar */ }
+  }
+  if (skinSelect.value !== currentSkin) skinSelect.value = currentSkin;
+  refreshStyleVars();
+  if (board) {
+    draw();
+    drawNext();
+  }
 }
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
@@ -179,13 +334,11 @@ function updateHUD() {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
+  const skin = SKINS[currentSkin] || SKINS[DEFAULT_SKIN];
+  const color = skin.colors[colorIndex];
+  if (!color) return;
   context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+  skin.draw(context, x * size + 1, y * size + 1, size - 2, color);
   context.globalAlpha = 1;
 }
 
@@ -305,7 +458,16 @@ function init() {
   animId = requestAnimationFrame(loop);
 }
 
+// Keys typed on a form control (the skin <select>) belong to that control:
+// the arrows must not move the piece at the same time.
+function isFormControl(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true;
+}
+
 document.addEventListener('keydown', e => {
+  if (isFormControl(e.target)) return;
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
@@ -337,6 +499,23 @@ themeBtn.addEventListener('click', e => {
   e.currentTarget.blur(); // evita que Space/Enter reactiven el botón
 });
 
+skinSelect.addEventListener('change', e => {
+  applySkin(e.currentTarget.value, true);
+  e.currentTarget.blur(); // evita que las flechas cambien de skin y muevan la pieza
+});
+
+skinSelect.addEventListener('keydown', e => {
+  // Escape/Enter close the dropdown without firing `change`, so the blur above
+  // never runs and the select would keep the focus — leaving every game key
+  // dead while the piece keeps falling. Hand the keyboard back to the game.
+  if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'NumpadEnter') {
+    e.currentTarget.blur();
+  }
+});
+
 applyTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark', false);
+// localStorage is the source of truth; the inline script in <head> only
+// pre-sets data-skin to avoid a flash of the default skin.
+applySkin(storedSkin() || DEFAULT_SKIN, false);
 
 init();

@@ -8,8 +8,12 @@
     try {
       document.documentElement.dataset.theme =
         localStorage.getItem("theme") === "light" ? "light" : "dark";
+      var savedSkin = localStorage.getItem("tetris.skin");
+      document.documentElement.dataset.skin =
+        ["retro", "neon", "pastel", "pixel"].indexOf(savedSkin) >= 0 ? savedSkin : "retro";
     } catch (e) {
       document.documentElement.dataset.theme = "dark";
+      document.documentElement.dataset.skin = "retro";
     }
   </script>
   <link rel="stylesheet" href="style.css" />
@@ -38,6 +42,16 @@
         <div class="panel-section">
           <span class="label">NEXT</span>
           <canvas id="next-canvas" width="120" height="120"></canvas>
+        </div>
+
+        <div class="panel-section">
+          <span class="label">SKIN</span>
+          <select id="skin-select" aria-label="Elegir estilo visual de las piezas">
+            <option value="retro">Retro</option>
+            <option value="neon">Neón</option>
+            <option value="pastel">Pastel</option>
+            <option value="pixel">Pixel art</option>
+          </select>
         </div>
 
         <div class="panel-section controls">
