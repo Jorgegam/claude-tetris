@@ -206,6 +206,44 @@ function primeSfx(el) {
 }
 // ===== End audio (SFX) =====
 
+// ---- Audio (line clear) ----
+// Line-clear sound effect ("Unlock game notification", Mixkit). Served from
+// Mixkit's CDN so no binary asset lands in the repo; their free license allows
+// this use with no attribution required.
+const LINE_CLEAR_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/253/253-preview.mp3';
+
+function createLineClearSound() {
+  try {
+    const audio = new Audio(LINE_CLEAR_SOUND_URL);
+    audio.preload = 'auto';
+    audio.volume = 0.5;
+    return audio;
+  } catch (e) {
+    return null; // no Audio support: the game keeps running, silently
+  }
+}
+
+// Built at load time, not on first use, so the mp3 is already cached when the
+// first line lands. Constructing an Audio does not trip the autoplay policy;
+// only play() does.
+const lineClearSound = createLineClearSound();
+
+function playLineClearSound() {
+  if (!lineClearSound) return;
+  try {
+    // Rewinding lets two consecutive clears sound again without cloning the
+    // element: the clip is short and piece locks are far enough apart.
+    lineClearSound.currentTime = 0;
+    const played = lineClearSound.play();
+    // play() returns a promise that rejects without a prior user gesture or
+    // when the download fails (offline); it must be handled or it surfaces as
+    // an unhandled rejection.
+    if (played && typeof played.catch === 'function') played.catch(() => {});
+  } catch (e) {
+    /* ignored: audio must never break the game */
+  }
+}
+
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
@@ -571,6 +609,7 @@ function clearLines() {
     level = Math.max(gameStartLevel, Math.floor(lines / 10) + 1);
     dropInterval = dropIntervalFor(level);
     updateHUD();
+    playLineClearSound();
   }
   return cleared;
 }

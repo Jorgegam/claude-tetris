@@ -48,6 +48,7 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Game Over** con opción de reinicio y **sonido de derrota**: un efecto arcade retro que suena solo al perder de verdad, nunca al abandonar la partida. El fichero viene incluido en el repo (`assets/sounds/`), así que funciona también sin conexión.
 - **Tabla de records local** (top 5) guardada en `localStorage`, con nombre, puntos, líneas, nivel y mejor combo de cada partida, **una sola fila por jugador** (un nombre ya registrado sobrescribe su propio record solo si mejora su puntuación), más dos agregados calculados sobre los records guardados: **mejor combo** (la racha más alta registrada) y **líneas máximas** (el mejor total de líneas de una partida). Incluye botón **Resetear records** (pide confirmación).
 - **Combos**: se registra la racha de piezas consecutivas que limpian línea; el máximo de la partida se guarda junto al record.
+- **Sonido al completar línea**: cada vez que se limpia al menos una fila suena un efecto corto (_Unlock game notification_, de [Mixkit](https://mixkit.co/free-sound-effects/game/)), cargado desde su CDN. Si el navegador bloquea la reproducción o no hay conexión, el juego sigue funcionando en silencio.
 - **Temas claro / oscuro** y **cuatro skins visuales** (Retro, Neón, Pastel y Pixel art) que cambian la paleta y el dibujado de los bloques. Ambas preferencias se recuerdan entre partidas.
 
 ---
@@ -170,6 +171,7 @@ Contiene toda la lógica del juego. A grandes rasgos:
 - **Combos** (`lockPiece`): `clearLines()` devuelve cuántas líneas quitó; si quitó alguna se incrementa `comboStreak` (y se actualiza `maxCombo`), y si no, la racha vuelve a `0`.
 - **Records** (`loadScores` / `saveScore` / `resetScores`): top 5 persistido en `localStorage` bajo la clave `tetris.highscores`. Cada entrada es `{ name, score, lines, level, maxCombo, date }`. Todos los accesos van dentro de `try/catch` y `loadScores()` valida la forma de lo leído (array, campos numéricos), devolviendo una lista vacía si el JSON está corrupto o viene de otra versión. `saveScore()` agrupa por `nameKey()` (nombre sin mayúsculas ni acentos) para que cada jugador tenga una única fila, y devuelve `outcome`: `'saved'` (guardado), `'kept'` (ya existía una marca igual o mejor con ese nombre, no se escribe nada) o `'failed'` (`localStorage` no disponible).
 - **Audio** (`playSfx` / `stopSfx` / `primeSfx`): capa mínima sobre el elemento `<audio>`, agrupada en un bloque autocontenido al principio del archivo. `playSfx` pone `currentTime = 0` antes de `play()` para poder repetir el mismo clip, y captura la promesa que devuelve `play()` porque el navegador puede rechazarla (política de autoplay, fichero ausente, códec no soportado). `primeSfx` se llama desde el click en **Jugar** —el primer gesto real del usuario— y arranca el clip silenciado para dejarlo desbloqueado en Safari/iOS, donde un `play()` disparado por un temporizador se bloquearía. `stopSfx` corta el efecto al reiniciar. Todos los fallos se tragan en silencio: el Game Over nunca depende del audio.
+- **Audio** (`createLineClearSound` / `playLineClearSound`): un único elemento `Audio` creado al cargar el script —para que el mp3 esté ya en caché cuando llegue la primera línea— y reutilizado en cada limpieza rebobinándolo con `currentTime = 0`. `clearLines()` lo dispara dentro de su bloque `if (cleared)`, así que suena una sola vez tanto si se limpia una línea como si se limpian cuatro. La promesa de `play()` y el constructor van envueltos en `catch`: la política de autoplay del navegador o un fallo de red nunca deben romper la partida.
 
 ### Flujo del juego
 
@@ -202,7 +204,7 @@ Cuando una pieza recién generada ya colisiona al aparecer (`spawn`), se dispara
 - **JavaScript (ES6+) vanilla** — `const`/`let`, _arrow functions_, _spread operator_, `Array.from`, _template literals_…
 - **Canvas 2D API** — para todo el renderizado del juego.
 - **`requestAnimationFrame`** — para el bucle de juego sincronizado con el navegador.
-- **`HTMLAudioElement`** — un elemento `<audio>` para el efecto de derrota; sin Web Audio API ni librerías de sonido.
+- **`HTMLAudioElement`** — un elemento `<audio>` del DOM para el efecto de derrota (fichero del repo) y un `Audio` creado en JS para el de línea completada (desde CDN); sin Web Audio API ni librerías de sonido.
 
 **Sin dependencias.** No hay `package.json`, ni bundler, ni transpilador.
 
@@ -239,10 +241,13 @@ Algunos parámetros fáciles de tunear en `game.js`:
 | `MIN_START_LEVEL` / `MAX_START_LEVEL` | Rango del selector de nivel inicial | `1` / `15` |
 | `SFX_VOLUME`   | Volumen del efecto de derrota (0–1)      | `0.6`                 |
 | `START_LEVEL_KEY` | Clave de `localStorage` del nivel inicial | `tetris.startLevel` |
+| `LINE_CLEAR_SOUND_URL` | URL del efecto de línea completada | mp3 de Mixkit |
 
 Para cambiar el sonido de derrota basta con sustituir `assets/sounds/game-over.wav` manteniendo el nombre (o editar el `src` del `<audio>` en `index.html` si el formato es otro). Recuerda actualizar `assets/sounds/CREDITS.txt` con la nueva procedencia.
 
 La velocidad inicial de caída ya no es una constante: se deriva del nivel inicial con `dropIntervalFor(startLevel)` = `max(100, 1000 − (startLevel − 1) × 90)` ms, así que con nivel inicial `1` sigue siendo `1000` ms. Ojo: el suelo de `100` ms se alcanza ya en el nivel `11`, así que los niveles iniciales `11`–`15` caen a la misma velocidad y solo se diferencian en el multiplicador de puntuación.
+
+Para cambiar el sonido de línea completada basta con sustituir `LINE_CLEAR_SOUND_URL` por otra URL de audio (o por una ruta local, si prefieres guardar el fichero en el repo); el volumen se ajusta en `createLineClearSound()` con `audio.volume`.
 
 Los colores del menú de pausa son variables CSS en `style.css` (`--menu-bg`, `--menu-border`, `--menu-shadow`, `--select-bg`, `--btn-secondary-bg`, `--btn-secondary-hover`, `--btn-secondary-text`), definidas tanto en `:root` como en `:root[data-theme="light"]`.
 
